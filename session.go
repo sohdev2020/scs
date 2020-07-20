@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexedwards/scs/v2/memstore"
+	"scs/memstore"
 )
 
 // Deprecated: Session is a backwards-compatible alias for SessionManager.
