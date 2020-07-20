@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -51,6 +52,7 @@ func newSessionData(lifetime time.Duration) *sessionData {
 // Most applications will use the LoadAndSave() middleware and will not need to
 // use this method.
 func (s *SessionManager) Load(ctx context.Context, token string) (context.Context, error) {
+	log.Printf("store look up token [%s]", token)
 	if _, ok := ctx.Value(s.contextKey).(*sessionData); ok {
 		return ctx, nil
 	}
@@ -63,6 +65,7 @@ func (s *SessionManager) Load(ctx context.Context, token string) (context.Contex
 	if err != nil {
 		return nil, err
 	} else if !found {
+		log.Printf("cannot find token in store creating new session data")
 		return s.addSessionDataToContext(ctx, newSessionData(s.Lifetime)), nil
 	}
 
@@ -95,6 +98,7 @@ func (s *SessionManager) Commit(ctx context.Context) (string, time.Time, error) 
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
 
+	log.Printf("commit token [%s]", sd.token)
 	if sd.token == "" {
 		var err error
 		sd.token, err = generateToken()
@@ -105,6 +109,7 @@ func (s *SessionManager) Commit(ctx context.Context) (string, time.Time, error) 
 
 	b, err := s.Codec.Encode(sd.deadline, sd.values)
 	if err != nil {
+		log.Printf("failed to encode data %v", err)
 		return "", time.Time{}, err
 	}
 
@@ -118,6 +123,7 @@ func (s *SessionManager) Commit(ctx context.Context) (string, time.Time, error) 
 
 	err = s.Store.Commit(sd.token, b, expiry)
 	if err != nil {
+		log.Printf("failed to save data %v", err)
 		return "", time.Time{}, err
 	}
 
@@ -487,14 +493,9 @@ func generateToken() (string, error) {
 
 type contextKey string
 
-var (
-	contextKeyID      uint64
-	contextKeyIDMutex = &sync.Mutex{}
-)
+var contextKeyID uint64
 
 func generateContextKey() contextKey {
-	contextKeyIDMutex.Lock()
-	defer contextKeyIDMutex.Unlock()
 	atomic.AddUint64(&contextKeyID, 1)
 	return contextKey(fmt.Sprintf("session.%d", contextKeyID))
 }

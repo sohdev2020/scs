@@ -131,6 +131,8 @@ func (s *SessionManager) LoadAndSave(next http.Handler) http.Handler {
 		cookie, err := r.Cookie(s.Cookie.Name)
 		if err == nil {
 			token = cookie.Value
+		} else {
+			log.Printf("no cookie token, creating new session")
 		}
 
 		ctx, err := s.Load(r.Context(), token)
@@ -162,7 +164,10 @@ func (s *SessionManager) LoadAndSave(next http.Handler) http.Handler {
 		if bw.code != 0 {
 			w.WriteHeader(bw.code)
 		}
-		w.Write(bw.buf.Bytes())
+		if bw.buf.Len() > 0 {
+			log.Printf("are we writing body already??")
+			w.Write(bw.buf.Bytes())
+		}
 	})
 }
 
